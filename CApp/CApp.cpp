@@ -30,17 +30,12 @@ Uint32 CApp::_AppTimerTimeCallback(Uint32 interval, CApp* pApp){
 			return interval;
 
 	while(pApp->m_pTexts->Card()>5){
-		((CText*)pApp->m_pTexts->Popfront())->~CText();
+		delete ((CText*)pApp->m_pTexts->Popfront());
 	}
 	pApp->m_iTime+= interval/1000;
 	return interval;
 }
 
-// Uint32 CApp::_AppTimerTimeCallback(Uint32 interval, CApp* pApp){
-// 	printf("Taguele\n");
-
-// 	return interval;
-// }
 
 Uint32 CApp::_AppTimerAnimateCallback(Uint32 interval, CApp* pApp){
 	if(mIsBitsSet(pApp->m_uStatus, ST_APP_PAUSED) || mIsBitsSet(pApp->m_uStatus, ST_APP_GAMEOVER))
@@ -64,23 +59,10 @@ Uint32 CApp::_AppTimerAnimateCallback(Uint32 interval, CApp* pApp){
 	char buf[64];
 	sprintf(buf,"%04d",pApp->m_iScore);
 	pApp->m_pTexts->Pushback(new CText(pApp->m_pRenderer, SDL_Point{APP_WINDOW_PADDING, 5}, buf));
-	if(pApp->m_pTexts->Getback())((CText*)pApp->m_pTexts->Getback())->Draw(pApp->m_pRenderer);
-
-	// SDL_Surface*texte=TTF_RenderText_Solid(pApp->m_pFont, buf, (SDL_Color){255,255,255,255});
-	// SDL_Texture*texture=SDL_CreateTextureFromSurface(pApp->m_pRenderer, texte);
-	// SDL_RenderCopy(pApp->m_pRenderer, texture, NULL, &(SDL_Rect){APP_WINDOW_PADDING,5,100,40});
-	// SDL_DestroyTexture(texture);
-	// SDL_FreeSurface(texte);
 
 	sprintf(buf,"%04d",pApp->m_iTime);
 	pApp->m_pTexts->Pushback(new CText(pApp->m_pRenderer, SDL_Point{APP_WINDOW_PADDING+(SNAKE_POS_MAX_X)*(SNAKE_SECTION_SIZE+SNAKE_SECTION_SPACING)-100,5}, buf));
 	if(pApp->m_pTexts->Getback())((CText*)pApp->m_pTexts->Getback())->Draw(pApp->m_pRenderer);
-
-	// texte=TTF_RenderText_Solid(pApp->m_pFont, buf, (SDL_Color){255,255,255,255});
-	// texture=SDL_CreateTextureFromSurface(pApp->m_pRenderer, texte);
-	// SDL_RenderCopy(pApp->m_pRenderer, texture, NULL, &(SDL_Rect){APP_WINDOW_PADDING+(SNAKE_POS_MAX_X)*(SNAKE_SECTION_SIZE+SNAKE_SECTION_SPACING)-100,5,100,40});
-	// SDL_DestroyTexture(texture);
-	// SDL_FreeSurface(texte);
 
 	// --- SNAKE LOGIC --- //
 	if(pApp->m_pSnake)pApp->m_pSnake->Draw(pApp->m_pRenderer); //test
