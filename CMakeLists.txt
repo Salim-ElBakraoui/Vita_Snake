@@ -17,7 +17,7 @@ include("/usr/local/vitasdk/share/vita.cmake" REQUIRED)
 
 ## Configuration options for this app
 # Display name (under bubble in LiveArea)
-set(VITA_APP_NAME "Snake Clone C++")
+set(VITA_APP_NAME "Snake C++")
 # Unique ID must be exactly 9 characters. Recommended: XXXXYYYYY where X =
 # unique string of developer and Y = a unique number for this app
 set(VITA_TITLEID  "SNAK30000")

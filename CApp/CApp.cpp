@@ -29,17 +29,27 @@ Uint32 CApp::_AppTimerTimeCallback(Uint32 interval, CApp* pApp){
 	if(mIsBitsSet(pApp->m_uStatus, ST_APP_PAUSED) || mIsBitsSet(pApp->m_uStatus, ST_APP_GAMEOVER))
 			return interval;
 
-	while(pApp->m_pTexts->Card()>5){
-		delete ((CText*)pApp->m_pTexts->Popfront());
-	}
 	pApp->m_iTime+= interval/1000;
+	char buf[32];
+	sprintf(buf,"%04d",pApp->m_iTime);
+
+	pApp->m_pTimerTexts->Pushback(new CText(pApp->m_pRenderer, SDL_Point{APP_WINDOW_PADDING+(SNAKE_POS_MAX_X)*(SNAKE_SECTION_SIZE+SNAKE_SECTION_SPACING)-100,5}, buf));
+
+	while(pApp->m_pTimerTexts->Card()>3 && pApp->m_pScoreTexts->Card()>3){
+		delete ((CText*)pApp->m_pScoreTexts->Popfront());
+		delete ((CText*)pApp->m_pTimerTexts->Popfront());
+	}
+
 	return interval;
 }
 
 
 Uint32 CApp::_AppTimerAnimateCallback(Uint32 interval, CApp* pApp){
-	if(mIsBitsSet(pApp->m_uStatus, ST_APP_PAUSED) || mIsBitsSet(pApp->m_uStatus, ST_APP_GAMEOVER))
-			return interval;
+
+	if(mIsBitsSet(pApp->m_uStatus, ST_APP_PAUSED) || mIsBitsSet(pApp->m_uStatus, ST_APP_GAMEOVER)){
+		pApp->m_pSound->MusicPause();
+		return interval;
+	}
 
 	static SDL_Rect rGameArea = {
 			APP_WINDOW_PADDING-1,
@@ -48,21 +58,9 @@ Uint32 CApp::_AppTimerAnimateCallback(Uint32 interval, CApp* pApp){
 			(SNAKE_POS_MAX_Y)*(SNAKE_SECTION_SIZE+SNAKE_SECTION_SPACING)+1};
 	
 	// --- GAME AREA DRAWING --- //
-//	SDL_SetRenderDrawColor(pApp->m_pRenderer, pApp->m_colBkgnd.r, pApp->m_colBkgnd.g, pApp->m_colBkgnd.b, pApp->m_colBkgnd.a);
-//	SDL_RenderClear(pApp->m_pRenderer);
 	 SDL_RenderCopy(pApp->m_pRenderer, pApp->m_pBGTexture, nullptr, &SDL_Rect{0,0,1920,1080});
 	 SDL_SetRenderDrawColor(pApp->m_pRenderer, 255, 255, 255, 255);
 	 SDL_RenderDrawRect(pApp->m_pRenderer, &rGameArea);
-
-
-	// // --- SCORE RENDERING --- //
-	char buf[64];
-	sprintf(buf,"%04d",pApp->m_iScore);
-	pApp->m_pTexts->Pushback(new CText(pApp->m_pRenderer, SDL_Point{APP_WINDOW_PADDING, 5}, buf));
-
-	sprintf(buf,"%04d",pApp->m_iTime);
-	pApp->m_pTexts->Pushback(new CText(pApp->m_pRenderer, SDL_Point{APP_WINDOW_PADDING+(SNAKE_POS_MAX_X)*(SNAKE_SECTION_SIZE+SNAKE_SECTION_SPACING)-100,5}, buf));
-	if(pApp->m_pTexts->Getback())((CText*)pApp->m_pTexts->Getback())->Draw(pApp->m_pRenderer);
 
 	// --- SNAKE LOGIC --- //
 	if(pApp->m_pSnake)pApp->m_pSnake->Draw(pApp->m_pRenderer); //test
@@ -91,6 +89,10 @@ Uint32 CApp::_AppTimerAnimateCallback(Uint32 interval, CApp* pApp){
 		pApp->m_pSound->CollectPlay();
 		pApp->m_ptSnakeFoodLoc = SDL_Point{-1,-1};
 		pApp->m_iScore += 50;
+		
+		char buf[64];
+		sprintf(buf,"%04d",pApp->m_iScore);
+		pApp->m_pScoreTexts->Pushback(new CText(pApp->m_pRenderer, SDL_Point{APP_WINDOW_PADDING, 5}, buf));
 	}
 
 	// --- POISON LOGIC --- //
@@ -116,7 +118,17 @@ Uint32 CApp::_AppTimerAnimateCallback(Uint32 interval, CApp* pApp){
 		pApp->m_pSound->PoisonPlay();
 		pApp->m_ptSnakePoisonLoc = SDL_Point{-1,-1};
 		pApp->m_iScore -= 50;
+
+		char buf[64];
+		sprintf(buf,"%04d",pApp->m_iScore);
+		pApp->m_pScoreTexts->Pushback(new CText(pApp->m_pRenderer, SDL_Point{APP_WINDOW_PADDING, 5}, buf));
 	}
+
+	// --- SCORE AND TIMER RENDERING --- //
+
+	if(pApp->m_pScoreTexts->Card())((CText*)pApp->m_pScoreTexts->Getback())->Draw(pApp->m_pRenderer);
+	if(pApp->m_pTimerTexts->Card())((CText*)pApp->m_pTimerTexts->Getback())->Draw(pApp->m_pRenderer);
+
 
 	// --- SELF-BITING DETECTION --- //
 
@@ -161,7 +173,7 @@ CApp::CApp():
 	}
 	mBitsSet(m_uStatus, ST_SDL_INITIATED);
 	TTF_Init();
-	m_pFont = TTF_OpenFont(APP_MAIN_FONT_FILE_NAME, 20);
+	m_pFont = TTF_OpenFont(APP_MAIN_FONT_FILE_NAME, 40);
 	if(m_pFont==nullptr){
 			cerr << "TTF failed to load font file: " <<  SDL_GetError() << endl;
 			mBitsSet(m_uStatus, ST_APP_INIT_FAILED);
@@ -169,13 +181,28 @@ CApp::CApp():
 	else
 		mBitsSet(m_uStatus, ST_TTF_INITIATED);
 
+	int iW, iH;
+	SDL_Surface* pCacheSurface = TTF_RenderText_Blended(m_pFont, "GAMEOVER", SDL_Color{0xFF, 0xFF, 0xFF, 0xFF});	
+	m_pTextGameover = SDL_CreateTextureFromSurface(m_pRenderer, pCacheSurface);
+	SDL_FreeSurface(pCacheSurface);
+	SDL_QueryTexture(m_pTextGameover, nullptr, nullptr, &iW, &iH);
+	m_rTextGameover = SDL_Rect{APP_WINDOW_WIDTH/2-iW/2, 5, iW, iH};
+
+	pCacheSurface = TTF_RenderText_Blended(m_pFont, "PAUSED", SDL_Color{0xFF, 0xFF, 0xFF, 0xFF});
+	m_pTextPaused = SDL_CreateTextureFromSurface(m_pRenderer, pCacheSurface);
+	SDL_FreeSurface(pCacheSurface);
+	SDL_QueryTexture(m_pTextPaused, nullptr, nullptr, &iW, &iH);
+	m_rTextPaused = SDL_Rect{APP_WINDOW_WIDTH/2-iW/2, 5, iW, iH};
+
 	m_colBkgnd 	= APP_WINDOW_COLOR_BKGND;
 	m_colLimits = APP_WINDOW_COLOR_LIMITS;
 
 	m_pFoodTexture 		= IMG_LoadTexture(m_pRenderer, APP_FOOD_APPLE_PATH);
 	m_pPoisonTexture	= IMG_LoadTexture(m_pRenderer, APP_FOOD_POISON_PATH);
 	m_pBGTexture		= IMG_LoadTexture(m_pRenderer, APP_DEFAULT_BG_PATH);
+
 	SDL_GameControllerOpen(0);
+
 	CSnake::InitGraph(m_pRenderer, APP_SNAKE_HEAD_PATH, APP_SNAKE_BODY_PATH, APP_SNAKE_TAIL_PATH);
 	CText::InitGraph(APP_MAIN_FONT_FILE_NAME, SDL_Color{0xFF, 0xFF, 0xFF, 0xFF}, 40);
 
@@ -190,10 +217,15 @@ CApp::~CApp() {
 	SDL_RemoveTimer(m_iTimerIDtimer);
 	SDL_RemoveTimer(m_iTimerIDanimate);
 
-	if(m_pTexts)delete m_pTexts;
+	if(m_pScoreTexts)delete m_pScoreTexts;
+	if(m_pTimerTexts)delete m_pTimerTexts;
+
 	if(m_pSound)delete m_pSound;
 	if(m_pSnake)delete m_pSnake;
 
+	SDL_DestroyTexture(m_pTextPaused);
+	SDL_DestroyTexture(m_pTextGameover);
+	
 	SDL_DestroyTexture(m_pBGTexture);
 	SDL_DestroyTexture(m_pPoisonTexture);
 	SDL_DestroyTexture(m_pFoodTexture);
@@ -215,8 +247,12 @@ int CApp::Run(){
 
 	m_pSnake			= new CSnake();
 	m_pSound			= new CSound();
-	m_pTexts			= new CContainer((t_ptfV)CText::DeleteFunc);
+	m_pScoreTexts		= new CContainer((t_ptfV)CText::DeleteFunc);
+	m_pTimerTexts		= new CContainer((t_ptfV)CText::DeleteFunc);
 
+	m_pTimerTexts->Pushback(new CText(m_pRenderer, SDL_Point{APP_WINDOW_PADDING+(SNAKE_POS_MAX_X)*(SNAKE_SECTION_SIZE+SNAKE_SECTION_SPACING)-100,5}, "0000"));
+	m_pScoreTexts->Pushback(new CText(m_pRenderer, SDL_Point{APP_WINDOW_PADDING, 5}, "0000"));
+	
 	m_iTimerIDanimate = SDL_AddTimer(APP_TIMER_TICK_MS, (SDL_TimerCallback)_AppTimerAnimateCallback , this);
 	m_iTimerIDtimer   = SDL_AddTimer(1000, (SDL_TimerCallback)_AppTimerTimeCallback, this);
 
@@ -241,12 +277,14 @@ int CApp::Run(){
 					m_pSnake->ChangeDirection(DIR_RIGHT);
 					break;
 				case SDL_CONTROLLER_BUTTON_START:
-					if(mIsBitsClr(m_uStatus, ST_APP_PAUSED)){
-						m_pSound->MusicPause();
+					if(mIsBitsClr(m_uStatus, ST_APP_GAMEOVER) && mIsBitsClr(m_uStatus, ST_APP_PAUSED)){
 						mBitsSet(m_uStatus, ST_APP_PAUSED);
 						m_pSound->PausePlay();
+						SDL_RenderCopy(m_pRenderer, m_pTextPaused, nullptr, &m_rTextPaused);
+						SDL_RenderPresent(m_pRenderer);
 					}
-					else {
+
+					else{
 						m_pSound->MusicPlay();
 						mBitsClr(m_uStatus, ST_APP_PAUSED);
 						m_pSound->PausePlay();

@@ -56,14 +56,22 @@ private:
 	TTF_Font*		m_pFont;
 
 	CSnake*			m_pSnake;
-	CContainer*		m_pTexts;
+
+	CContainer*		m_pScoreTexts;
+	CContainer*		m_pTimerTexts;
 
 	int				m_iSnakeFoodTimeout, m_iSnakePoisonTimeout;
 
 	SDL_Texture*	m_pFoodTexture;
 	SDL_Texture*	m_pPoisonTexture;
 	SDL_Texture*	m_pBGTexture;
+	SDL_Texture*	m_pTextGameover;
+	SDL_Texture*	m_pTextPaused;
 
+
+	SDL_Rect		m_rTextGameover;
+	SDL_Rect		m_rTextPaused;
+	
 	CSound*			m_pSound;
 
 	unsigned int	m_uStatus;
